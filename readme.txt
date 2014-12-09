@@ -1,0 +1,1 @@
+This is a program that calculates, displays, and stores information for a forensic tape deck. Displays speed of tape, displays stereo sound level, records sound events.
