@@ -24,15 +24,22 @@ float db;
 float volts;
 int peak;
 boolean bool_StereoSignalBit1;
-boolean bool_StereoSignalBit2;
+//boolean bool_StereoSignalBit2;
 String tapeSideIdentifierString;
 String topGraphIdentifierString;
 String bottomGraphIdentifierString;
 unsigned long timeOfLastGraphUpdate;
+
 float rightChannelValue_NoGain;
 float rightChannelValue_Gain;
 float leftChannelValue_NoGain;
 float leftChannelValue_Gain;
+float rightChannelValue;
+float leftChannelValue;
+
+float topGraphDisplayValue;
+float bottomGraphDisplayValue;
+char sideOfTape;
 
 uint16_t lastGraphToggleButtonReading;
 uint8_t flag_WhichGraphToDisplay;
@@ -123,59 +130,86 @@ void updateGraph(){
 
         rightChannelValue_Gain = analogRead(A4);
         rightChannelValue_NoGain = analogRead(A5);
-                
-        if (rightChannelValue_Gain < 900){
-            clearLine(3);
-            printGraph(3,get_db(rightChannelValue_Gain/80), "L ");
-        }
-        else{
-            clearLine(3);
-            printGraph(3,get_db(rightChannelValue_NoGain), "R ");
-        }
         
+        bool_StereoSignalBit1=digitalRead(4);
         
         if (leftChannelValue_Gain < 900){
-            clearLine(1);
-            printGraph(1,get_db(leftChannelValue_Gain/80), "L ");
+            leftChannelValue = leftChannelValue_Gain/80);
         }
         else{
-            clearLine(1);
-            printGraph(1,get_db(leftChannelValue_NoGain), "L ");
+            leftChannelValue = leftChannelValue_NoGain;
+        } 
+        
+        if (rightChannelValue_Gain < 900){
+            rightChannelValue = (rightChannelValue_Gain/80);
         }
+        else{
+            rightChannelValue = rightChannelValue_NoGain;
+        }
+        
+        if (digitalRead(5) == 0){
+            sideOfTape='A';
+        }
+        else{
+            sideOfTape='B';
+        }
+        
+        if (bool_StereoSignalBit1==0){
+            //L and R
+            clearLine(1);
+            printGraph(1,get_db(leftChannelValue), sideOfTape);
+            clearLine(3);
+            printGraph(3,get_db(rightChannelValue), sideOfTape);
+        }
+        else{
+            //L-R L+R
+            clearLine(1);
+            printGraph(1,get_db(leftChannelValue - rightChannelValue),'');
+            clearLine(3);
+            printGraph(3,get_db(leftChannelValue + rightChannelValue),'');
+        }
+        
     }
 }
 
-void determineGraphParameters(){
+void determineGraphParameters(){ //WAITING FOR COLLECTION
     /*
     Read values of the two signal bits and assign to vars
     Determine which side is playing and set var
     Determine whether it is stereo A and B; or A+B and A-B
     */
     bool_StereoSignalBit1  = digitalRead(4);
-    bool_StereoSignalBit2 = digitalRead(5);
+//    bool_StereoSignalBit2 = digitalRead(5);
     
-    if (bool_StereoSignalBit1 == 0){ //DETERMINES STEREO OR    A-B / A+B
-        
-        if (bool_StereoSignalBit2 == 0){//Bit1==0 and Bit2==0
-            //Stereo, A and B
-            topGraphIdentifierString = "L";
-            bottomGraphIdentifierString = "R";
-        }
-        else{ //Bit1==0 and Bit2==1
-            //Not Stereo, A - B and A + B
-            topGraphIdentifierString = "L - R";
-            bottomGraphIdentifierString = "L + R";
-        }
+//    if (bool_StereoSignalBit1 == 0){ //DETERMINES STEREO OR    A-B / A+B
+//        
+//        if (bool_StereoSignalBit2 == 0){//Bit1==0 and Bit2==0
+//            //Stereo, A and B
+//            topGraphIdentifierString = "L";
+//            bottomGraphIdentifierString = "R";
+//        }
+//        else{ //Bit1==0 and Bit2==1
+//            //Not Stereo, A - B and A + B
+//            topGraphIdentifierString = "L - R";
+//            bottomGraphIdentifierString = "L + R";
+//        }
+//    }
+//        
+//    else{
+//        
+//        if (bool_StereoSignalBit2 == 0){ //Bit1==1 and Bit2 == 0
+//            //Placeholder Conditional
+//        }
+//        else{ //If Bit1==1 and Bit2== 1
+//            //No Display
+//        }
+//    }
+
+    if (bool_StereoSignalBit1==0){
+        //Stereo
     }
-        
     else{
-        
-        if (bool_StereoSignalBit2 == 0){ //Bit1==1 and Bit2 == 0
-            //Placeholder Conditional
-        }
-        else{ //If Bit1==1 and Bit2== 1
-            //No Display
-        }
+        //A-B and A+B
     }
         
 }
@@ -235,7 +269,7 @@ void isr(){ //Interrupts Service Routine
 void loop(){
 
     calculateAndDisplayFrequency();
-    determineGraphParameters();
+//    determineGraphParameters();
     updateGraph();
 
 }
