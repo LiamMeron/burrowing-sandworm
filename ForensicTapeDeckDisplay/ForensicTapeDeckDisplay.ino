@@ -1,3 +1,6 @@
+// The main class for the calculation, logic switching, and displaying of
+// the forensic tape deck
+
 #include <LiquidCrystal.h>
 #define REFVOLT 3.45
 
@@ -23,12 +26,29 @@ volatile unsigned int edges = 0;
 float db;
 float volts;
 int peak;
-boolean bool_StereoSignalBit1;
-//boolean bool_StereoSignalBit2;
+
 String tapeSideIdentifierString;
 String topGraphIdentifierString;
 String bottomGraphIdentifierString;
 unsigned long timeOfLastGraphUpdate;
+
+boolean bool_StereoSignalBit1;
+boolean bool_isGrounded =0;
+
+uint16_t eventTime_Left[100];
+uint16_t eventTime_Right[100];
+uint16_t eventLevel_Left[100];
+uint16_t eventLevel_Right[100];
+
+uint8_t eventCounter = 0;
+uint16_t eventValue = 0;
+
+uint8_t localTempDbValue = 0;
+
+uint16_t dcOffsetVal_leftUnamped = 0;     //Left channel unamplified
+uint16_t dcOffsetVal_leftAmped = 0;          //Left channel amplified
+uint16_t dcOffsetVal_rightUnamped=0;    //Right channel unamplified
+uint16_t dcOffsetVal_rightAmped=0;         //Right channel amplified
 
 float rightChannelValue_NoGain;
 float rightChannelValue_Gain;
@@ -132,92 +152,83 @@ void updateGraph(){
         rightChannelValue_NoGain = analogRead(A5);
         
         bool_StereoSignalBit1=digitalRead(4);
+        bool_isGrounded=digitalRead(5);
         
-        if (leftChannelValue_Gain < 900){
-            leftChannelValue = leftChannelValue_Gain/80);
-        }
-        else{
-            leftChannelValue = leftChannelValue_NoGain;
+        
+        
+        
+        /*                                        
+                                                Must calibrate the dcOffsetValues
+                                                                                                                                           */
+                                                                                                                                           
+        if (leftChannelValue_Gain < 900){                //Use the left channel unamplified
+            leftChannelValue = ((leftChannelValue_Gain - dcOffsetVal_leftAmped)/80);
+        }        
+        else{                                                                     //Use the left channel amplified
+            leftChannelValue = leftChannelValue_NoGain - dcOffsetVal_leftUnamped;
         } 
         
-        if (rightChannelValue_Gain < 900){
-            rightChannelValue = (rightChannelValue_Gain/80);
+        if (rightChannelValue_Gain < 900){             //Use the right channel amplified
+            rightChannelValue = ((rightChannelValue_Gain - dcOffsetVal_rightAmped)/80);
         }
-        else{
-            rightChannelValue = rightChannelValue_NoGain;
+        else{                                                                    //Use the right channel unamplified
+            rightChannelValue = rightChannelValue_NoGain - dcOffsetVal_rightUnamped;
         }
         
-        if (digitalRead(5) == 0){
+        
+        
+        
+        if (digitalRead(2) == 1){
             sideOfTape='A';
         }
         else{
             sideOfTape='B';
         }
         
-        if (bool_StereoSignalBit1==0){
-            //L and R
-            clearLine(1);
-            printGraph(1,get_db(leftChannelValue), sideOfTape);
-            clearLine(3);
-            printGraph(3,get_db(rightChannelValue), sideOfTape);
+        
+        if (bool_isGrounded==0){
+            if (bool_StereoSignalBit1==0){
+                //L and R
+                clearLine(1);
+                localTempDbValue = get_db(leftChannelValue);
+                printGraph(1, localTempDbValue , sideOfTape);
+                
+                clearLine(3);
+                localTempDbValue = get_db(rightChannelValue);
+                printGraph(3, localTempDbValue , sideOfTape);
+            }
+            else{
+                //L-R L+R
+                clearLine(1);
+                localTempDbValue = get_db(leftChannelValue - rightChannelValue);
+                printGraph(1, localTempDbValue , '^');
+                
+                clearLine(3);
+                localTempDbValue = get_db(leftChannelValue + rightChannelValue);
+                printGraph(3, localTempDbValue , '^');
+            }
         }
+            
         else{
-            //L-R L+R
-            clearLine(1);
-            printGraph(1,get_db(leftChannelValue - rightChannelValue),'');
-            clearLine(3);
-            printGraph(3,get_db(leftChannelValue + rightChannelValue),'');
+            dcOffsetVal_leftUnamped=analogRead(1);
+            dcOffsetVal_leftAmped=analogRead(0);
+            dcOffsetVal_rightUnamped=analogRead(5);
+            dcOffsetVal_rightAmped=analogRead(4);
         }
         
-    }
-}
-
-void determineGraphParameters(){ //WAITING FOR COLLECTION
-    /*
-    Read values of the two signal bits and assign to vars
-    Determine which side is playing and set var
-    Determine whether it is stereo A and B; or A+B and A-B
-    */
-    bool_StereoSignalBit1  = digitalRead(4);
-//    bool_StereoSignalBit2 = digitalRead(5);
-    
-//    if (bool_StereoSignalBit1 == 0){ //DETERMINES STEREO OR    A-B / A+B
-//        
-//        if (bool_StereoSignalBit2 == 0){//Bit1==0 and Bit2==0
-//            //Stereo, A and B
-//            topGraphIdentifierString = "L";
-//            bottomGraphIdentifierString = "R";
-//        }
-//        else{ //Bit1==0 and Bit2==1
-//            //Not Stereo, A - B and A + B
-//            topGraphIdentifierString = "L - R";
-//            bottomGraphIdentifierString = "L + R";
-//        }
-//    }
-//        
-//    else{
-//        
-//        if (bool_StereoSignalBit2 == 0){ //Bit1==1 and Bit2 == 0
-//            //Placeholder Conditional
-//        }
-//        else{ //If Bit1==1 and Bit2== 1
-//            //No Display
-//        }
-//    }
-
-    if (bool_StereoSignalBit1==0){
-        //Stereo
-    }
-    else{
-        //A-B and A+B
-    }
         
+    }
 }
+
+
 
 /****************************************************************************************
  ****************************************************************************************/
 
-
+void saveEvent(uint16_t valToTest){
+    if (valToTest >= 0){
+        
+    }
 
 float get_db(float i){
     return 20.0*log10(i);
@@ -230,10 +241,13 @@ void clearLine(int line){
     }
 }
 
-void printGraph(int line, int db, String side)
+void printGraph(int line, uint8_t db, char side)
 {
+
     lcd.setCursor(0,line); 
-    lcd.print(side);
+    if (side != '^'){
+        lcd.print(side);
+    }
     for(int i = 0; i<db/5; i++){   //Draws all of the full characters
         lcd.write(4);
     }
