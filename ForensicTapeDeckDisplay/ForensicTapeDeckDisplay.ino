@@ -2,7 +2,7 @@
 // the forensic tape deck
 
 #include <LiquidCrystal.h>
-#define REFVOLT 3.45
+#define REFVOLT 3.3
 
 LiquidCrystal lcd(12, 11, 9, 8, 7, 6);
 byte pix1[8] = {
@@ -32,7 +32,7 @@ String topGraphIdentifierString;
 String bottomGraphIdentifierString;
 unsigned long timeOfLastGraphUpdate;
 
-boolean bool_StereoSignalBit1;
+boolean bool_StereoSignalBit;
 boolean bool_isGrounded =0;
 
 uint16_t eventTime_Left[100];
@@ -40,15 +40,13 @@ uint16_t eventTime_Right[100];
 uint16_t eventLevel_Left[100];
 uint16_t eventLevel_Right[100];
 
-uint8_t eventCounter = 0;
-uint16_t eventValue = 0;
+uint8_t eventCounter_Left = 0;
+uint8_t eventCounter_Right = 0;
 
-uint8_t localTempDbValue = 0;
-
-uint16_t dcOffsetVal_leftUnamped = 0;     //Left channel unamplified
-uint16_t dcOffsetVal_leftAmped = 0;          //Left channel amplified
-uint16_t dcOffsetVal_rightUnamped=0;    //Right channel unamplified
-uint16_t dcOffsetVal_rightAmped=0;         //Right channel amplified
+uint16_t dcOffsetVal_leftNoGain = 0;     //Left channel unamplified
+uint16_t dcOffsetVal_leftGain = 0;          //Left channel amplified
+uint16_t dcOffsetVal_rightNoGain=0;    //Right channel unamplified
+uint16_t dcOffsetVal_rightGain=0;         //Right channel amplified
 
 float rightChannelValue_NoGain;
 float rightChannelValue_Gain;
@@ -72,8 +70,13 @@ void setup(){
     lcd.createChar(3,pix4);
     lcd.createChar(4,pix5);
 
-    pinMode(4, INPUT); //The pin for stereo select signal bits
-    pinMode(5, INPUT); //The other pin for stereo select signal bits
+    pinMode(0,INPUT);//    Peak Read(1) / Reset Queue (0)
+    pinMode(1,INPUT);//    Pause Record (1) / Null (0)
+    
+    pinMode(2, INPUT);//    Tape Side B (1) / Side A (0)
+    
+    pinMode(4, INPUT); //    A+B & A-B (1) / AB (0)
+    pinMode(5, INPUT); //    Calibrate(1) / Null(0)
     
     Serial.begin(9600);
     lcd.begin(20, 4);
@@ -142,93 +145,129 @@ void calculateAndDisplayFrequency(){
 }
 
 void updateGraph(){
-    if (millis() - timeOfLastGraphUpdate >= 250){
-        timeOfLastGraphUpdate = millis();
-
-        leftChannelValue_Gain = analogRead(A0);
-        leftChannelValue_NoGain = analogRead(A1);
-
-        rightChannelValue_Gain = analogRead(A4);
-        rightChannelValue_NoGain = analogRead(A5);
-        
-        bool_StereoSignalBit1=digitalRead(4);
-        bool_isGrounded=digitalRead(5);
-        
-        
-        
-        
-        /*                                        
-                                                Must calibrate the dcOffsetValues
-                                                                                                                                           */
-                                                                                                                                           
-        if (leftChannelValue_Gain < 900){                //Use the left channel unamplified
-            leftChannelValue = ((leftChannelValue_Gain - dcOffsetVal_leftAmped)/80);
-        }        
-        else{                                                                     //Use the left channel amplified
-            leftChannelValue = leftChannelValue_NoGain - dcOffsetVal_leftUnamped;
-        } 
-        
-        if (rightChannelValue_Gain < 900){             //Use the right channel amplified
-            rightChannelValue = ((rightChannelValue_Gain - dcOffsetVal_rightAmped)/80);
-        }
-        else{                                                                    //Use the right channel unamplified
-            rightChannelValue = rightChannelValue_NoGain - dcOffsetVal_rightUnamped;
-        }
-        
-        
-        
-        
-        if (digitalRead(2) == 1){
-            sideOfTape='A';
-        }
-        else{
-            sideOfTape='B';
-        }
-        
-        
-        if (bool_isGrounded==0){
-            if (bool_StereoSignalBit1==0){
-                //L and R
-                clearLine(1);
-                localTempDbValue = get_db(leftChannelValue);
-                printGraph(1, localTempDbValue , sideOfTape);
-                
-                clearLine(3);
-                localTempDbValue = get_db(rightChannelValue);
-                printGraph(3, localTempDbValue , sideOfTape);
-            }
-            else{
-                //L-R L+R
-                clearLine(1);
-                localTempDbValue = get_db(leftChannelValue - rightChannelValue);
-                printGraph(1, localTempDbValue , '^');
-                
-                clearLine(3);
-                localTempDbValue = get_db(leftChannelValue + rightChannelValue);
-                printGraph(3, localTempDbValue , '^');
-            }
-        }
-            
-        else{
-            dcOffsetVal_leftUnamped=analogRead(1);
-            dcOffsetVal_leftAmped=analogRead(0);
-            dcOffsetVal_rightUnamped=analogRead(5);
-            dcOffsetVal_rightAmped=analogRead(4);
-        }
-        
-        
+                                                                                            /*
+                                                                                            MEASUREMENTS, VALUES, AND VARIABLES
+                                                                                                                                                                  */
+    leftChannelValue_Gain = analogRead(A0);
+    leftChannelValue_NoGain = analogRead(A1);
+    
+    rightChannelValue_Gain = analogRead(A4);
+    rightChannelValue_NoGain = analogRead(A5);
+    
+    bool_StereoSignalBit=digitalRead(4);
+    bool_isGrounded=digitalRead(5);
+    
+    if (digitalRead(2) == 1){
+        sideOfTape='A';
     }
+    else{
+        sideOfTape='B';
+    }        
+    
+    
+                                                                                                        /*                                        
+                                                                                                        CALIBRATION ADJUSTMENTS
+                                                                                                                                                              */
+    if (leftChannelValue_Gain < 900){                //Use the left channel unamplified
+        leftChannelValue = ((leftChannelValue_Gain - dcOffsetVal_leftGain)/80);
+    }        
+    else{                                                                     //Use the left channel amplified
+        leftChannelValue = leftChannelValue_NoGain - dcOffsetVal_leftNoGain;
+    } 
+    
+    if (rightChannelValue_Gain < 900){             //Use the right channel amplified
+        rightChannelValue = ((rightChannelValue_Gain - dcOffsetVal_rightGain)/80);
+    }
+    else{                                                                    //Use the right channel unamplified
+        rightChannelValue = rightChannelValue_NoGain - dcOffsetVal_rightNoGain;
+    }
+    
+    
+    
+    
+    
+    
+                                                                                                                    /*
+                                                                                                                    DISPLAY DECISIONS
+                                                                                                                                                         */
+    if (bool_isGrounded==0){                                //If not calibrating
+        if (bool_StereoSignalBit==0){
+            //L and R
+            clearLine(1);
+            printGraph(1, get_db(leftChannelValue) , sideOfTape);
+            
+            clearLine(3);
+            printGraph(3, get_db(rightChannelValue) , sideOfTape);
+    }
+        else{
+            //L-R L+R
+            clearLine(1);
+            printGraph(1, get_db(leftChannelValue - rightChannelValue) , '^');
+            
+            clearLine(3);
+            printGraph(3, get_db(leftChannelValue + rightChannelValue) , '^');
+    }
+    }
+        
+    else{                                                                    //Calibrate
+        dcOffsetVal_leftNoGain=analogRead(1);
+        dcOffsetVal_leftGain=analogRead(0);
+        dcOffsetVal_rightNoGain=analogRead(5);
+        dcOffsetVal_rightGain=analogRead(4);
+    }
+      
+    
+                                                                                                                    /*
+                                                                                                                    LOGGING LOGIC
+                                                                                                                                                    */
+    if (digitalRead(1) == 0){//Second pole is not in the pause record state
+        if (digitalRead(0) == 1){ //If switch, is @ peak read position: Determine if current peak values are events and act accordingly
+            saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak sig
+            saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak sig
+        }
+        else{ //RESET LOGS //Switch is at "Reset queue" position
+            eventCounter_Left = 0;
+            eventCounter_Right = 0;
+        }
+    }   
+      //ELSE { PAUSE LOGGING }
 }
+
 
 
 
 /****************************************************************************************
  ****************************************************************************************/
 
-void saveEvent(uint16_t valToTest){
+void saveEvent(char side, char channel, uint16_t valToTest, uint16_t time){        //If the signal is greater than 0DB save it as an event
     if (valToTest >= 0){
-        
+        if (channel == 'L'){
+            if (eventCounter_Left <= 100){
+                if (side == 'B'){
+                    eventTime_Left[eventCounter_Left] = ( ((time + 500) / 1000) | 32768 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
+                    eventCounter_Left += 1;
+                }
+                else{//Otherwise the bit should always = 0 for side = A
+                    eventTime_Left[eventCounter_Left] = ((time + 500) / 1000 ); 
+                    eventCounter_Left += 1;
+                }
+                                
+            }
+        }
+        else {//Channel == R
+            if(eventCounter_Right <= 100){
+                if (side == 'B'){
+                    eventTime_Right[eventCounter_Right] = ( ((time + 500) / 1000) | 32768 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
+                    eventCounter_Right += 1;
+                }
+                else {//Otherwise the bit should always = 0 for side = A
+                    eventTime_Right[eventCounter_Right] = ((time + 500) / 1000);
+                    eventCounter_Right += 1;
+                }
+            }
+        }
     }
+}
 
 float get_db(float i){
     return 20.0*log10(i);
@@ -283,9 +322,10 @@ void isr(){ //Interrupts Service Routine
 void loop(){
 
     calculateAndDisplayFrequency();
-//    determineGraphParameters();
-    updateGraph();
-
+    if (millis() - timeOfLastGraphUpdate >= 250){
+        timeOfLastGraphUpdate = millis();
+        updateGraph();
+    }
 }
 
 
