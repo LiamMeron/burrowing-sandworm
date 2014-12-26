@@ -59,8 +59,6 @@ float topGraphDisplayValue;
 float bottomGraphDisplayValue;
 char sideOfTape;
 
-uint16_t lastGraphToggleButtonReading;
-uint8_t flag_WhichGraphToDisplay;
 
 void setup(){
 
@@ -214,6 +212,9 @@ void updateGraph(){
         dcOffsetVal_leftGain=analogRead(0);
         dcOffsetVal_rightNoGain=analogRead(5);
         dcOffsetVal_rightGain=analogRead(4);
+        
+        clearLine(1);
+        clearLine(3);
     }
       
     
