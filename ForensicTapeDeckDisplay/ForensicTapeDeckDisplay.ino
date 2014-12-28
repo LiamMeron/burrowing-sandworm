@@ -4,6 +4,13 @@
 #include <LiquidCrystal.h>
 #define REFVOLT 3.3
 
+#define PEAKREADRESETBIT 0
+#define PEAKPAUSEBIT 1
+#define TAPESIDEBIT 2
+#define STEREOBIT 4
+#define CALIBRATEBIT 5
+
+
 LiquidCrystal lcd(12, 11, 9, 8, 7, 6);
 byte pix1[8] = {
     B10000, B10000, B10000, B10000, B10000, B10000, B10000, B10000};    //Characters for 
@@ -152,15 +159,17 @@ void updateGraph(){
     rightChannelValue_Gain = analogRead(A4);
     rightChannelValue_NoGain = analogRead(A5);
     
-    bool_StereoSignalBit=digitalRead(4);
-    bool_isGrounded=digitalRead(5);
+    bool_StereoSignalBit=digitalRead(STEREOBIT);
+    bool_isGrounded=digitalRead(CALIBRATEBIT);
     
-    if (digitalRead(2) == 1){
-        sideOfTape='A';
+    
+    if (digitalRead(TAPESIDEBIT) == 1){
+        sideOfTape='B';
     }
     else{
-        sideOfTape='B';
-    }        
+        sideOfTape='A';
+    }
+        
     
     
                                                                                                         /*                                        
@@ -180,15 +189,14 @@ void updateGraph(){
         rightChannelValue = rightChannelValue_NoGain - dcOffsetVal_rightNoGain;
     }
     
-    
-    
-    
+   
     
     
                                                                                                                     /*
                                                                                                                     DISPLAY DECISIONS
                                                                                                                                                          */
-    if (bool_isGrounded==0){                                //If not calibrating
+    if (bool_isGrounded==0){                                //If not calibrating 
+        
         if (bool_StereoSignalBit==0){
             //L and R
             clearLine(1);
@@ -207,6 +215,23 @@ void updateGraph(){
     }
     }
         
+        
+        
+        if (digitalRead(PEAKPAUSEBIT) == 0){//Second pole is not in the pause record state
+            if (digitalRead(PEAKREADRESETBIT) == 1){ //If switch is @ peak read position: Determine if current peak values are events and act accordingly
+                saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak sig
+                saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak sig
+            }
+            else{ //RESET LOGS //Switch is at "Reset queue" position
+                eventCounter_Left = 0;
+                eventCounter_Right = 0;
+            }
+        }   
+      //ELSE { PAUSE LOGGING }
+      
+      
+      
+      
     else{                                                                    //Calibrate
         dcOffsetVal_leftNoGain=analogRead(1);
         dcOffsetVal_leftGain=analogRead(0);
@@ -221,17 +246,7 @@ void updateGraph(){
                                                                                                                     /*
                                                                                                                     LOGGING LOGIC
                                                                                                                                                     */
-    if (digitalRead(1) == 0){//Second pole is not in the pause record state
-        if (digitalRead(0) == 1){ //If switch, is @ peak read position: Determine if current peak values are events and act accordingly
-            saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak sig
-            saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak sig
-        }
-        else{ //RESET LOGS //Switch is at "Reset queue" position
-            eventCounter_Left = 0;
-            eventCounter_Right = 0;
-        }
-    }   
-      //ELSE { PAUSE LOGGING }
+
 }
 
 
