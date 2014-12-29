@@ -55,6 +55,7 @@ uint16_t dcOffsetVal_leftGain = 0;          //Left channel amplified
 uint16_t dcOffsetVal_rightNoGain=0;    //Right channel unamplified
 uint16_t dcOffsetVal_rightGain=0;         //Right channel amplified
 
+uint16_t valOfPeakPauseChannel;
 float rightChannelValue_NoGain;
 float rightChannelValue_Gain;
 float leftChannelValue_NoGain;
@@ -216,18 +217,26 @@ void updateGraph(){
     }
         
         
+                                                                                                                    /*
+                                                                                                                     LOGGING LOGIC
+                                                                                                                                                   */
+        valOfPeakPauseChannel = analogRead(PEAKPAUSEBIT);
         
-        if (digitalRead(PEAKPAUSEBIT) == 0){//Second pole is not in the pause record state
-            if (digitalRead(PEAKREADRESETBIT) == 1){ //If switch is @ peak read position: Determine if current peak values are events and act accordingly
-                saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak sig
-                saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak sig
-            }
-            else{ //RESET LOGS //Switch is at "Reset queue" position
+                                                                             //Log only if not in calibration mode and    
+        if (valOfPeakPauseChannel <= 340)//Switch is in Peak mode
+        {       
+            saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak sig
+            saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak sig
+        }
+        else if (valOfPeakPauseChannel >= 680)//If switch is in Reset mode
+        {
+                //RESET LOGS //Switch is at "Reset queue" position
                 eventCounter_Left = 0;
                 eventCounter_Right = 0;
-            }
-        }   
-      //ELSE { PAUSE LOGGING }
+        }
+   
+      //ELSE (340 < valOfPeakPauseChannel < 680) 
+          //{ PAUSE LOGGING }
       
       
       
@@ -241,11 +250,6 @@ void updateGraph(){
         clearLine(1);
         clearLine(3);
     }
-      
-    
-                                                                                                                    /*
-                                                                                                                    LOGGING LOGIC
-                                                                                                                                                    */
 
 }
 
