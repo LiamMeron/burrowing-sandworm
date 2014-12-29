@@ -2,7 +2,7 @@
 // the forensic tape deck
 
 #include <LiquidCrystal.h>
-#define REFVOLT 3.3
+#define REFVOLT 2.75
 
 #define TAPESIDEBIT 2
 #define STEREOBIT 4
@@ -171,21 +171,25 @@ void updateGraph(){
     }
         
     
-    
                                                                                                         /*                                        
                                                                                                         CALIBRATION ADJUSTMENTS
                                                                                                                                                               */
     if (leftChannelValue_Gain < 900){                //Use the left channel unamplified
+        //leftChannelValue = ((leftChannelValue_Gain)/80);
         leftChannelValue = ((leftChannelValue_Gain - dcOffsetVal_leftGain)/80);
     }        
     else{                                                                     //Use the left channel amplified
+        //leftChannelValue = leftChannelValue_NoGain ;
         leftChannelValue = leftChannelValue_NoGain - dcOffsetVal_leftNoGain;
     } 
     
     if (rightChannelValue_Gain < 900){             //Use the right channel amplified
         rightChannelValue = ((rightChannelValue_Gain - dcOffsetVal_rightGain)/80);
+        //rightChannelValue = ((rightChannelValue_Gain)/80);
+
     }
     else{                                                                    //Use the right channel unamplified
+        //rightChannelValue = rightChannelValue_NoGain;
         rightChannelValue = rightChannelValue_NoGain - dcOffsetVal_rightNoGain;
     }
     
@@ -200,27 +204,23 @@ void updateGraph(){
         if (bool_StereoSignalBit==0){
             //L and R
             clearLine(1);
-            printGraph(1, get_db(leftChannelValue) , sideOfTape);
+            printGraph(1, get_db(leftChannelValue) , sideOfTape, " L ");
             
             clearLine(3);
-            printGraph(3, get_db(rightChannelValue) , sideOfTape);
+            printGraph(3, get_db(rightChannelValue) , sideOfTape, " R ");
         }
         else{
             //L-R L+R
             clearLine(1);
-            printGraph(1, get_db(leftChannelValue - rightChannelValue) , '^');
+            printGraph(1, get_db(leftChannelValue - rightChannelValue) , '^', "L-R ");
             
             clearLine(3);
-            printGraph(3, get_db(leftChannelValue + rightChannelValue) , '^');
+            printGraph(3, get_db(leftChannelValue + rightChannelValue) , '^', "L+R ");
         }
-    }
-        
-        
+    
                                                                                                                     /*
                                                                                                                      LOGGING LOGIC
-                                                                                                                                                   */
-
-        
+                                                                                                                                                   */        
                                                                              //Log only if not in calibration mode and    
         if (valOfPeakPauseChannel <= 340)//Switch is in Peak mode
         {       
@@ -233,12 +233,10 @@ void updateGraph(){
                 eventCounter_Left = 0;
                 eventCounter_Right = 0;
         }
+    }
    
       //ELSE (340 < valOfPeakPauseChannel < 680) 
           //{ PAUSE LOGGING }
-      
-      
-      
       
     else{                                                                    //Calibrate
         dcOffsetVal_leftNoGain=analogRead(1);
@@ -248,7 +246,11 @@ void updateGraph(){
         
         clearLine(1);
         clearLine(3);
-    }
+    }  
+
+      
+      
+    
 
 }
 
@@ -288,7 +290,7 @@ void saveEvent(char side, char channel, uint16_t valToTest, uint16_t time){     
     }
 }
 
-float get_db(float i){
+int get_db(float i){
     return 20.0*log10(i);
 }
 
@@ -299,18 +301,27 @@ void clearLine(int line){
     }
 }
 
-void printGraph(int line, uint8_t db, char side)
+void printGraph(int line, int8_t db, char tapeSide, String dispType)
 {
-
-    lcd.setCursor(0,line); 
-    if (side != '^'){
-        lcd.print(side);
-    }
-    for(int i = 0; i<db/5; i++){   //Draws all of the full characters
-        lcd.write(4);
-    }
-    if (db%5 > 0){                    //then,
-        lcd.write((db % 5) - 1); //draws the remaining pixels
+    
+        lcd.setCursor(0,line); 
+        if (tapeSide != '^'){
+            lcd.print(tapeSide);
+            lcd.print(dispType);
+        }
+        else{
+            lcd.print(dispType);
+        }
+    
+    
+    if (db > -1){
+        lcd.setCursor(4, line);
+        for(int i = 0; i<db/5; i++){   //Draws all of the full characters
+            lcd.write(4);
+        }
+        if (db%5 > 0){                    //then,
+            lcd.write((db % 5) - 1); //draws the remaining pixels
+        }
     }
 
 }
