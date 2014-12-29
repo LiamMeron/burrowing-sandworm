@@ -4,8 +4,6 @@
 #include <LiquidCrystal.h>
 #define REFVOLT 3.3
 
-#define PEAKREADRESETBIT 0
-#define PEAKPAUSEBIT 1
 #define TAPESIDEBIT 2
 #define STEREOBIT 4
 #define CALIBRATEBIT 5
@@ -76,13 +74,13 @@ void setup(){
     lcd.createChar(3,pix4);
     lcd.createChar(4,pix5);
 
-    pinMode(0,INPUT);//    Peak Read(1) / Reset Queue (0)
-    pinMode(1,INPUT);//    Pause Record (1) / Null (0)
+//    pinMode(0,INPUT);//    Peak Read(1) / Reset Queue (0)
+//    pinMode(1,INPUT);//    Pause Record (1) / Null (0)
     
     pinMode(2, INPUT);//    Tape Side B (1) / Side A (0)
     
     pinMode(4, INPUT); //    A+B & A-B (1) / AB (0)
-    pinMode(5, INPUT); //    Calibrate(1) / Null(0)
+    pinMode(5, INPUT_PULLUP); //    Calibrate(1) / Null(0)
     
     Serial.begin(9600);
     lcd.begin(20, 4);
@@ -163,6 +161,7 @@ void updateGraph(){
     bool_StereoSignalBit=digitalRead(STEREOBIT);
     bool_isGrounded=digitalRead(CALIBRATEBIT);
     
+    valOfPeakPauseChannel = analogRead(A6);
     
     if (digitalRead(TAPESIDEBIT) == 1){
         sideOfTape='B';
@@ -205,7 +204,7 @@ void updateGraph(){
             
             clearLine(3);
             printGraph(3, get_db(rightChannelValue) , sideOfTape);
-    }
+        }
         else{
             //L-R L+R
             clearLine(1);
@@ -213,14 +212,14 @@ void updateGraph(){
             
             clearLine(3);
             printGraph(3, get_db(leftChannelValue + rightChannelValue) , '^');
-    }
+        }
     }
         
         
                                                                                                                     /*
                                                                                                                      LOGGING LOGIC
                                                                                                                                                    */
-        valOfPeakPauseChannel = analogRead(PEAKPAUSEBIT);
+
         
                                                                              //Log only if not in calibration mode and    
         if (valOfPeakPauseChannel <= 340)//Switch is in Peak mode
