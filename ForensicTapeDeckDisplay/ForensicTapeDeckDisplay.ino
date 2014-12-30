@@ -45,8 +45,8 @@ uint16_t eventTime_Right[100];
 uint16_t eventLevel_Left[100];
 uint16_t eventLevel_Right[100];
 
-uint8_t eventCounter_Left = 0;
-uint8_t eventCounter_Right = 0;
+int8_t eventCounter_Left = 0;
+int8_t eventCounter_Right = 0;
 
 uint16_t dcOffsetVal_leftNoGain = 0;     //Left channel unamplified
 uint16_t dcOffsetVal_leftGain = 0;          //Left channel amplified
@@ -61,10 +61,10 @@ float leftChannelValue_Gain;
 float rightChannelValue;
 float leftChannelValue;
 
-float topGraphDisplayValue;
-float bottomGraphDisplayValue;
 char sideOfTape;
 
+boolean commandComplete = false;            //Variables for Serial
+String compiledSerialCommand;     //command interperetation
 
 void setup(){
 
@@ -224,19 +224,33 @@ void updateGraph(){
                                                                              //Log only if not in calibration mode and    
         if (valOfPeakPauseChannel <= 340)//Switch is in Peak mode
         {       
-            saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak sig
-            saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak sig
+            saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak signal
+            saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak signal 
+//            Serial.println(analogRead(2));
+//            Serial.println(analogRead(3));
+            lcd.setCursor(19,2);
+            lcd.print("+");
         }
         else if (valOfPeakPauseChannel >= 680)//If switch is in Reset mode
         {
                 //RESET LOGS //Switch is at "Reset queue" position
                 eventCounter_Left = 0;
                 eventCounter_Right = 0;
+                lcd.setCursor(19,2);
+                lcd.print("-");
         }
-    }
-   
+        
+               else{
+           lcd.setCursor(19,2);
+            lcd.print("|");
+       }
+
       //ELSE (340 < valOfPeakPauseChannel < 680) 
-          //{ PAUSE LOGGING }
+      //{ PAUSE LOGGING }
+    }
+       
+
+
       
     else{                                                                    //Calibrate
         dcOffsetVal_leftNoGain=analogRead(1);
@@ -259,13 +273,65 @@ void updateGraph(){
 
 /****************************************************************************************
  ****************************************************************************************/
+void compileSerialCommand(){
+    while (Serial.available()) {        
+        char receivedChar = (char)Serial.read();
+        if (receivedChar == '^'){
+            commandComplete = true;
+        }
+        else{
+            compiledSerialCommand += receivedChar;
+        }
+    }
+}
 
-void saveEvent(char side, char channel, uint16_t valToTest, uint16_t time){        //If the signal is greater than 0DB save it as an event
-    if (valToTest >= 0){
+void interperetSerialCommand(){
+
+        if (compiledSerialCommand == "download"){ 
+            Serial.println();
+            Serial.println(eventCounter_Left);
+            Serial.println(eventCounter_Right);
+            Serial.println();
+            
+            for (int i = 0; i<eventCounter_Left; i++){
+                Serial.print(eventTime_Left[i]);
+                Serial.print('^');
+                Serial.println(eventLevel_Left[i]);
+            }
+            
+            Serial.println("^#!");
+            
+            for (int i = 0; i<eventCounter_Right; i++){
+                Serial.print(eventTime_Right[i]);
+                Serial.print('^');
+                Serial.println(eventLevel_Right[i]);
+            }
+            compiledSerialCommand = "";//reset the command to await next cmd
+            commandComplete = false;
+        }
+    
+        //Other Possible Commands Go Here.
+
+}
+
+
+void saveEvent(char side, char channel, int16_t DbValToTest, uint16_t time){    //If the signal is greater than 0DB save it as an event
+
+    lcd.setCursor(14,2);
+    lcd.print(DbValToTest);
+    //lcd.setCursor(16,2);
+    lcd.print("   ");
+    
+    if (DbValToTest >= 60){ //-60 deals with the -60db range
         if (channel == 'L'){
+            lcd.setCursor(16,2);
+            lcd.print("L");
             if (eventCounter_Left <= 100){
+                
+                eventLevel_Left[eventCounter_Left]=analogRead(2);
+                
                 if (side == 'B'){
-                    eventTime_Left[eventCounter_Left] = ( ((time + 500) / 1000) | 32768 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
+                    eventTime_Left[eventCounter_Left] = ( ((time + 500) / 1000) | B10000000<<8 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
                     eventCounter_Left += 1;
                 }
                 else{//Otherwise the bit should always = 0 for side = A
@@ -275,10 +341,15 @@ void saveEvent(char side, char channel, uint16_t valToTest, uint16_t time){     
                                 
             }
         }
-        else {//Channel == R
+        else if (channel == 'R'){
+            lcd.setCursor(17,2);
+            lcd.print("R");
             if(eventCounter_Right <= 100){
+                
+                eventLevel_Right[eventCounter_Right]=analogRead(3);
+
                 if (side == 'B'){
-                    eventTime_Right[eventCounter_Right] = ( ((time + 500) / 1000) | 32768 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
+                    eventTime_Right[eventCounter_Right] = ( ((time + 500) / 1000) | B10000000<<8 ); //32768 is b1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
                     eventCounter_Right += 1;
                 }
                 else {//Otherwise the bit should always = 0 for side = A
@@ -286,6 +357,10 @@ void saveEvent(char side, char channel, uint16_t valToTest, uint16_t time){     
                     eventCounter_Right += 1;
                 }
             }
+        }
+        else{
+            lcd.setCursor(2,18);
+            lcd.print("?");
         }
     }
 }
@@ -355,6 +430,11 @@ void loop(){
     if (millis() - timeOfLastGraphUpdate >= 250){
         timeOfLastGraphUpdate = millis();
         updateGraph();
+    }
+    
+    compileSerialCommand();
+    if (commandComplete == true){
+        interperetSerialCommand();
     }
 }
 
