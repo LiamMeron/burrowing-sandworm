@@ -176,21 +176,21 @@ void updateGraph(){
                                                                                                                                                               */
     if (leftChannelValue_Gain < 900){                //Use the left channel unamplified
         //leftChannelValue = ((leftChannelValue_Gain)/80);
-        leftChannelValue = ((leftChannelValue_Gain - dcOffsetVal_leftGain)/80);
+        leftChannelValue = (((leftChannelValue_Gain - dcOffsetVal_leftGain)/80) * REFVOLT);
     }        
     else{                                                                     //Use the left channel amplified
         //leftChannelValue = leftChannelValue_NoGain ;
-        leftChannelValue = leftChannelValue_NoGain - dcOffsetVal_leftNoGain;
+        leftChannelValue = (leftChannelValue_NoGain - dcOffsetVal_leftNoGain) * REFVOLT;
     } 
     
     if (rightChannelValue_Gain < 900){             //Use the right channel amplified
-        rightChannelValue = ((rightChannelValue_Gain - dcOffsetVal_rightGain)/80);
+        rightChannelValue = ((rightChannelValue_Gain - dcOffsetVal_rightGain)/80) * REFVOLT;
         //rightChannelValue = ((rightChannelValue_Gain)/80);
 
     }
     else{                                                                    //Use the right channel unamplified
         //rightChannelValue = rightChannelValue_NoGain;
-        rightChannelValue = rightChannelValue_NoGain - dcOffsetVal_rightNoGain;
+        rightChannelValue = (rightChannelValue_NoGain - dcOffsetVal_rightNoGain) * REFVOLT;
     }
     
    
@@ -224,8 +224,8 @@ void updateGraph(){
                                                                              //Log only if not in calibration mode and    
         if (valOfPeakPauseChannel <= 340)//Switch is in Peak mode
         {       
-            saveEvent(sideOfTape, 'L', get_db(analogRead(2)), timeOfLastGraphUpdate);     //A2 is the L channel peak signal
-            saveEvent(sideOfTape, 'R', get_db(analogRead(3)), timeOfLastGraphUpdate);    //A3 is the R channel peak signal 
+            saveEvent(sideOfTape, 'L', get_db(leftChannelValue), timeOfLastGraphUpdate);     //A2 is the L channel peak signal
+            saveEvent(sideOfTape, 'R', get_db(rightChannelValue), timeOfLastGraphUpdate);    //A3 is the R channel peak signal 
 //            Serial.println(analogRead(2));
 //            Serial.println(analogRead(3));
             lcd.setCursor(19,2);
