@@ -2,7 +2,7 @@
 // the forensic tape deck
 
 #include <LiquidCrystal.h>
-#define REFVOLT 2.75
+#define REFVOLT 3.3
 
 #define TAPESIDEBIT 2
 #define STEREOBIT 4
@@ -318,17 +318,17 @@ void interperetSerialCommand(){
 void saveEvent(char side, char channel, int16_t DbValToTest, uint16_t time){    //If the signal is greater than 0DB save it as an event
 
     lcd.setCursor(14,2);
-    lcd.print(DbValToTest);
+ //   lcd.print(DbValToTest);
     //lcd.setCursor(16,2);
     lcd.print("   ");
     
     if (DbValToTest >= 60){ //-60 deals with the -60db range
         if (channel == 'L'){
-            lcd.setCursor(16,2);
-            lcd.print("L");
+//            lcd.setCursor(16,2);
+//            lcd.print("L");
             if (eventCounter_Left <= 100){
                 
-                eventLevel_Left[eventCounter_Left]=analogRead(2);
+                eventLevel_Left[eventCounter_Left]=DbValToTest;
                 
                 if (side == 'B'){
                     eventTime_Left[eventCounter_Left] = ( ((time + 500) / 1000) | B10000000<<8 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
@@ -346,7 +346,7 @@ void saveEvent(char side, char channel, int16_t DbValToTest, uint16_t time){    
             lcd.print("R");
             if(eventCounter_Right <= 100){
                 
-                eventLevel_Right[eventCounter_Right]=analogRead(3);
+                eventLevel_Right[eventCounter_Right]=DbValToTest;
 
                 if (side == 'B'){
                     eventTime_Right[eventCounter_Right] = ( ((time + 500) / 1000) | B10000000<<8 ); //32768 is b1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
