@@ -40,10 +40,13 @@ unsigned long timeOfLastGraphUpdate;
 boolean bool_StereoSignalBit;
 boolean bool_isGrounded =0;
 
-uint16_t eventTime[100];
-uint16_t eventLevel[100];
+uint16_t eventTime_Left[100];
+uint16_t eventTime_Right[100];
+uint16_t eventLevel_Left[100];
+uint16_t eventLevel_Right[100];
 
-int8_t eventCounter = 0;
+int8_t eventCounter_Left = 0;
+int8_t eventCounter_Right = 0;
 
 uint16_t dcOffsetVal_leftNoGain = 0;     //Left channel unamplified
 uint16_t dcOffsetVal_leftGain = 0;          //Left channel amplified
@@ -57,7 +60,6 @@ float leftChannelValue_NoGain;
 float leftChannelValue_Gain;
 float rightChannelValue;
 float leftChannelValue;
-float peakValue;
 
 char sideOfTape;
 
@@ -156,8 +158,6 @@ void updateGraph(){
     rightChannelValue_Gain = analogRead(A4);
     rightChannelValue_NoGain = analogRead(A5);
     
-    peakValue = analogRead(A2);
-    
     bool_StereoSignalBit=digitalRead(STEREOBIT);
     bool_isGrounded=digitalRead(CALIBRATEBIT);
     
@@ -224,8 +224,10 @@ void updateGraph(){
                                                                              //Log only if not in calibration mode and    
         if (valOfPeakPauseChannel <= 340)//Switch is in Peak mode
         {       
-//        Peak Hold is non stereo
-            saveEvent(sideOfTape, get_db(peakValue), timeOfLastGraphUpdate); //A2 is the peak hold input
+            saveEvent(sideOfTape, 'L', get_db(leftChannelValue), timeOfLastGraphUpdate);     //A2 is the L channel peak signal
+            saveEvent(sideOfTape, 'R', get_db(rightChannelValue), timeOfLastGraphUpdate);    //A3 is the R channel peak signal 
+//            Serial.println(analogRead(2));
+//            Serial.println(analogRead(3));
             lcd.setCursor(19,2);
             lcd.print("+");
         }
@@ -313,29 +315,52 @@ void interperetSerialCommand(){
 }
 
 
-void saveEvent(char side, int16_t DbValToTest, uint16_t time){    //If the signal is greater than 0DB save it as an event
+void saveEvent(char side, char channel, int16_t DbValToTest, uint16_t time){    //If the signal is greater than 0DB save it as an event
 
     lcd.setCursor(14,2);
  //   lcd.print(DbValToTest);
     //lcd.setCursor(16,2);
     lcd.print("   ");
-    if(time - (eventTime[eventCounter - 1] * 1000) >= 1000){
-        if (DbValToTest >= 60){ //-60 deals with the -60db range
-            if (eventCounter <= 100){
-                eventLevel[eventCounter]=DbValToTest;
+    
+    if (DbValToTest >= 60){ //-60 deals with the -60db range
+        if (channel == 'L'){
+//            lcd.setCursor(16,2);
+//            lcd.print("L");
+            if (eventCounter_Left <= 100){
+                
+                eventLevel_Left[eventCounter_Left]=DbValToTest;
+                
                 if (side == 'B'){
-                    eventTime[eventCounter] = ( ((time + 500) / 1000) | B10000000<<8 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
-                    eventCounter += 1;
+                    eventTime_Left[eventCounter_Left] = ( ((time + 500) / 1000) | B10000000<<8 ); //32768 is B1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
+                    eventCounter_Left += 1;
                 }
                 else{//Otherwise the bit should always = 0 for side = A
-                    eventTime[eventCounter] = ((time + 500) / 1000 ); 
-                    eventCounter += 1;
-                }          
+                    eventTime_Left[eventCounter_Left] = ((time + 500) / 1000 ); 
+                    eventCounter_Left += 1;
+                }
+                                
             }
-            else{
-    //            lcd.setCursor(2,18);
-    //            lcd.print("?");
+        }
+        else if (channel == 'R'){
+            lcd.setCursor(17,2);
+            lcd.print("R");
+            if(eventCounter_Right <= 100){
+                
+                eventLevel_Right[eventCounter_Right]=DbValToTest;
+
+                if (side == 'B'){
+                    eventTime_Right[eventCounter_Right] = ( ((time + 500) / 1000) | B10000000<<8 ); //32768 is b1000000000000000. This sets the first bit of the number to 1 signify that tapeSide == B
+                    eventCounter_Right += 1;
+                }
+                else {//Otherwise the bit should always = 0 for side = A
+                    eventTime_Right[eventCounter_Right] = ((time + 500) / 1000);
+                    eventCounter_Right += 1;
+                }
             }
+        }
+        else{
+            lcd.setCursor(2,18);
+            lcd.print("?");
         }
     }
 }
