@@ -56,7 +56,6 @@ float leftChannelValue;
 char sideOfTape;
 
 boolean commandComplete = false;            //Variables for Serial
-String compiledSerialCommand;     //command interperetation
 
 void setup(){
 
@@ -121,14 +120,6 @@ void calculateAndDisplayFrequency(){
         lcd.print(" CM/SEC. ");
         //Start interrupts back up
         sei();
-
-        /****DEBUG***/
-        //    Serial.println("hz, edges, timeElapsedSinceLastFrequencyCalc:");
-        //    Serial.println(hz); //DEBUGGING
-        //    Serial.println(edges);
-        //    Serial.println(timeElapsedSinceLastFrequencyCalc);
-        //    Serial.println(" ");
-        /***DEBUG***/
 
 
 
@@ -245,8 +236,8 @@ void updateGraph(){
     
         //Other Possible Commands Go Here.
 
-}
-1
+
+
 
 int get_db(float i){
     return 20.0*log10(i);
@@ -315,10 +306,6 @@ void loop(){
         updateGraph();
     }
     
-    compileSerialCommand();
-    if (commandComplete == true){
-        interperetSerialCommand();
-    }
 }
 
 
